@@ -7,21 +7,27 @@ const GLITCH_THRESHOLD = 30;
 export default function Performer() {
   const [director, setDirector] = useState({ mode: "normal", autoRun: false });
   const [session, setSession] = useState({ state: "waiting", roundId: 0 });
-  const [world, setWorld] = useState({ stability: 70, dominant: "stable", updatedAt: 0 });
+  const [world, setWorld] = useState({
+    stability: 70,
+    dominant: "stable",
+    updatedAt: 0,
+  });
 
   const [pulse, setPulse] = useState(0);
-  const [reflash, setReflash] = useState(0); // for OVERRIDE "firmware" effect
+  const [reflash, setReflash] = useState(0);
   const lastUpdateRef = useRef(0);
 
-  // director
   useEffect(() => {
     return onValue(ref(db, "director"), (snap) => {
       const d = snap.val();
-      setDirector(d ? { mode: d.mode || "normal", autoRun: !!d.autoRun } : { mode: "normal", autoRun: false });
+      setDirector(
+        d
+          ? { mode: d.mode || "normal", autoRun: !!d.autoRun }
+          : { mode: "normal", autoRun: false }
+      );
     });
   }, []);
 
-  // session
   useEffect(() => {
     return onValue(ref(db, "session"), (snap) => {
       const s = snap.val() || { state: "waiting", roundId: 0 };
@@ -29,7 +35,6 @@ export default function Performer() {
     });
   }, []);
 
-  // world
   useEffect(() => {
     return onValue(ref(db, "world"), (snap) => {
       const w = snap.val();
@@ -49,20 +54,15 @@ export default function Performer() {
 
   const stability = world.stability ?? 70;
   const glitchLow = stability < GLITCH_THRESHOLD;
-
   const dominant = (world.dominant || "stable").toLowerCase();
 
-  // Trigger pulse on result applied (world.updatedAt changes)
   useEffect(() => {
     if (!world.updatedAt) return;
-
-    // ignore duplicate
     if (world.updatedAt === lastUpdateRef.current) return;
-    lastUpdateRef.current = world.updatedAt;
 
+    lastUpdateRef.current = world.updatedAt;
     setPulse((p) => p + 1);
 
-    // extra "firmware reflash" when OVERRIDE just applied
     if (dominant === "override") {
       setReflash((x) => x + 1);
     }
@@ -88,11 +88,9 @@ export default function Performer() {
     return "WAITING FOR INPUT";
   }, [blackout, frozen, active, locked]);
 
-  const cinematicPad = "clamp(28px, 5vw, 80px)";
+  const cinematicPad = "clamp(12px, 3vw, 40px)";
 
-  // GLITCH text styling knobs
   const glitchIntensity = useMemo(() => {
-    // stronger if low stability + if active (chaos)
     let v = 0.35;
     if (dominant === "glitch") v += 0.25;
     if (glitchLow) v += 0.2;
@@ -102,16 +100,10 @@ export default function Performer() {
 
   return (
     <div style={{ ...ui.page, background: theme.bg, padding: cinematicPad }}>
-      {/* cinematic vignette */}
       {!blackout && <div style={ui.vignette} />}
-
-      {/* subtle film grain */}
       {!blackout && <div style={ui.grain} />}
-
-      {/* Blackout: performer full black */}
       {blackout && <div style={ui.blackout} />}
 
-      {/* low stability glitch overlay (not during blackout) */}
       {!blackout && glitchLow && (
         <>
           <div style={ui.glitch.noise} />
@@ -119,57 +111,52 @@ export default function Performer() {
         </>
       )}
 
-      {/* OVERRIDE firmware reflash overlay (only when override updates) */}
       {!blackout && dominant === "override" && (
         <FirmwareReflash key={reflash} />
       )}
 
-      {/* Top / cinematic header */}
       {!blackout && (
-        <div style={ui.header}>
-          {dominant === "glitch" && !frozen ? (
-            <GlitchTitle text={labelText} intensity={glitchIntensity} />
-          ) : (
-            <div style={{ ...ui.title, borderColor: theme.border, background: theme.badgeBg }}>
-              {labelText}
-            </div>
-          )}
+        <div style={ui.layout}>
+          <div style={ui.header}>
+            {dominant === "glitch" && !frozen ? (
+              <GlitchTitle text={labelText} intensity={glitchIntensity} />
+            ) : (
+              <div
+                style={{
+                  ...ui.title,
+                  borderColor: theme.border,
+                  background: theme.badgeBg,
+                }}
+              >
+                {labelText}
+              </div>
+            )}
 
-          <div style={ui.hint}>{hint}</div>
-        </div>
-      )}
+            <div style={ui.hint}>{hint}</div>
+          </div>
 
-      {/* Center world model */}
-      {!blackout && (
-        <div style={ui.stageArea}>
-          <WorldCore
-            key={pulse}
-            theme={theme}
-            mode={dominant}
-            active={active}
-            locked={locked}
-            glitchLow={glitchLow}
-            stableBreath={dominant === "stable" && !frozen}
-          />
-        </div>
-      )}
+          <div style={ui.stageArea}>
+            <WorldCore
+              key={pulse}
+              theme={theme}
+              mode={dominant}
+              active={active}
+              locked={locked}
+              glitchLow={glitchLow}
+              stableBreath={dominant === "stable" && !frozen}
+            />
+          </div>
 
-      {/* Footer minimal */}
-      {!blackout && (
-        <div style={ui.footer}>
-          SIMULATION X • PERFORMER VIEW
+          <div style={ui.footer}>SIMULATION X • PERFORMER VIEW</div>
         </div>
       )}
     </div>
   );
 }
 
-/* ---------- FX: GLITCH TITLE ---------- */
-
 function GlitchTitle({ text, intensity = 0.6 }) {
-  // Intensity drives jitter & split distances via CSS vars
-  const split = 6 + Math.round(10 * intensity); // px
-  const jitter = 0.8 + intensity * 1.8; // factor
+  const split = 6 + Math.round(10 * intensity);
+  const jitter = 0.8 + intensity * 1.8;
 
   return (
     <div
@@ -179,14 +166,14 @@ function GlitchTitle({ text, intensity = 0.6 }) {
         ["--sxJitter"]: `${jitter}`,
       }}
     >
-      {/* base */}
       <div style={ui.titleGlitchBase}>{text}</div>
+      <div style={{ ...ui.titleGlitchGhost, ...ui.titleGhostRed }}>
+        {text}
+      </div>
+      <div style={{ ...ui.titleGlitchGhost, ...ui.titleGhostCyan }}>
+        {text}
+      </div>
 
-      {/* RGB ghosts */}
-      <div style={{ ...ui.titleGlitchGhost, ...ui.titleGhostRed }}>{text}</div>
-      <div style={{ ...ui.titleGlitchGhost, ...ui.titleGhostCyan }}>{text}</div>
-
-      {/* slicing layer */}
       <div style={ui.titleGlitchSlices} aria-hidden="true">
         <span style={ui.sliceA}>{text}</span>
         <span style={ui.sliceB}>{text}</span>
@@ -196,10 +183,7 @@ function GlitchTitle({ text, intensity = 0.6 }) {
   );
 }
 
-/* ---------- FX: OVERRIDE "firmware reflash" ---------- */
-
 function FirmwareReflash() {
-  // a quick top-to-bottom scan + confirm flash
   return (
     <>
       <div style={ui.firmware.scan} />
@@ -208,8 +192,6 @@ function FirmwareReflash() {
     </>
   );
 }
-
-/* ---------- World Core ---------- */
 
 function WorldCore({ theme, mode, active, locked, glitchLow, stableBreath }) {
   const symbol = mode === "glitch" ? "🌀" : mode === "override" ? "⚡" : "◉";
@@ -223,13 +205,9 @@ function WorldCore({ theme, mode, active, locked, glitchLow, stableBreath }) {
 
   return (
     <div style={ui.coreWrap}>
-      {/* pulse ring */}
       <div style={{ ...ui.pulseRing, borderColor: theme.border }} />
-
-      {/* orbit */}
       <div style={{ ...ui.orbit, borderColor: theme.border }} />
 
-      {/* core */}
       <div style={{ ...ui.coreShell, animation: breathAnim }}>
         <div
           style={{
@@ -242,31 +220,22 @@ function WorldCore({ theme, mode, active, locked, glitchLow, stableBreath }) {
         >
           <div style={{ ...ui.glass, background: theme.glass }} />
 
-          {/* world silhouette */}
           <div style={ui.worldLayer}>
             {mode === "stable" && <StableWorld />}
             {mode === "glitch" && <GlitchWorld />}
             {mode === "override" && <OverrideWorld />}
           </div>
 
-          {/* active fog */}
           {active && <div style={ui.fog} />}
-
-          {/* locked flash */}
           {locked && <div style={ui.flash} />}
-
-          {/* internal shimmer */}
           <div style={ui.shimmer} />
         </div>
       </div>
 
-      {/* icon */}
       <div style={{ ...ui.symbol, color: theme.symbol }}>{symbol}</div>
     </div>
   );
 }
-
-/* ---------- World silhouettes ---------- */
 
 function StableWorld() {
   return (
@@ -351,7 +320,12 @@ function GlitchWorld() {
 function OverrideWorld() {
   return (
     <svg viewBox="0 0 400 400" style={ui.svg} aria-hidden="true">
-      <g opacity="0.55" stroke="rgba(255,255,255,0.42)" strokeWidth="7" strokeLinecap="round">
+      <g
+        opacity="0.55"
+        stroke="rgba(255,255,255,0.42)"
+        strokeWidth="7"
+        strokeLinecap="round"
+      >
         <path d="M200 40 L200 120" />
         <path d="M200 280 L200 360" />
         <path d="M40 200 L120 200" />
@@ -376,89 +350,78 @@ function OverrideWorld() {
   );
 }
 
-/* ---------- Styles ---------- */
-
 const ui = {
   page: {
-    minHeight: "100vh",
-    width: "100vw",
-    overflow: "hidden",
+    minHeight: "100dvh",
+    width: "100%",
     fontFamily: "system-ui",
     position: "relative",
+    overflow: "hidden",
   },
 
-  vignette: {
-    position: "fixed",
-    inset: 0,
-    pointerEvents: "none",
-    background:
-      "radial-gradient(circle at 50% 45%, rgba(0,0,0,0.00) 20%, rgba(0,0,0,0.18) 70%, rgba(0,0,0,0.35) 100%)",
-    zIndex: 2,
-  },
-
-  grain: {
-    position: "fixed",
-    inset: 0,
-    pointerEvents: "none",
-    opacity: 0.10,
-    mixBlendMode: "multiply",
-    backgroundImage:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E\")",
-    backgroundRepeat: "repeat",
-    animation: "sxGrain 1.1s steps(2) infinite",
-    zIndex: 3,
+  layout: {
+    minHeight: "calc(100dvh - clamp(12px, 3vw, 40px) * 2)",
+    display: "grid",
+    gridTemplateRows: "auto 1fr auto",
+    gap: "clamp(10px, 2vh, 24px)",
+    position: "relative",
+    zIndex: 6,
   },
 
   header: {
     position: "relative",
     zIndex: 10,
     display: "flex",
-    alignItems: "baseline",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 18,
+    flexWrap: "wrap",
   },
 
   title: {
-    padding: "14px 22px",
+    padding: "clamp(10px, 1.6vw, 14px) clamp(14px, 2.2vw, 22px)",
     borderRadius: 18,
     border: "4px solid rgba(0,0,0,0.12)",
-    fontSize: "clamp(34px, 6vw, 72px)",
+    fontSize: "clamp(24px, 4.2vw, 72px)",
     fontWeight: 950,
     letterSpacing: "0.08em",
     color: "#0E1720",
     boxShadow: "0 22px 55px rgba(0,0,0,0.20)",
+    maxWidth: "100%",
   },
 
   hint: {
-    fontSize: "clamp(14px, 2vw, 22px)",
+    fontSize: "clamp(12px, 1.5vw, 22px)",
     fontWeight: 900,
     opacity: 0.78,
-    letterSpacing: "0.14em",
+    letterSpacing: "0.12em",
     color: "#0E1720",
     textAlign: "right",
-    marginTop: 10,
-    whiteSpace: "nowrap",
+    marginTop: 6,
+    whiteSpace: "normal",
+    maxWidth: "min(42vw, 420px)",
+    alignSelf: "center",
   },
 
   stageArea: {
-    minHeight: "calc(100vh - 180px)",
+    minHeight: 0,
     display: "grid",
     placeItems: "center",
     position: "relative",
     zIndex: 6,
+    overflow: "hidden",
   },
 
   coreWrap: {
-    width: "min(860px, 82vw)",
+    width: "min(72vw, 72vh, 760px)",
     aspectRatio: "1 / 1",
     display: "grid",
     placeItems: "center",
     position: "relative",
-    transform: "translateY(clamp(0px, 1vw, 10px))",
   },
 
   coreShell: {
-    width: "min(560px, 64vw)",
+    width: "min(54vw, 54vh, 520px)",
     aspectRatio: "1 / 1",
     borderRadius: "50%",
     display: "grid",
@@ -469,14 +432,14 @@ const ui = {
     width: "100%",
     height: "100%",
     borderRadius: "50%",
-    border: "14px solid rgba(0,0,0,0.14)",
+    border: "clamp(8px, 1vw, 14px) solid rgba(0,0,0,0.14)",
     position: "relative",
     overflow: "hidden",
   },
 
   glass: {
     position: "absolute",
-    inset: 22,
+    inset: "clamp(12px, 2vw, 22px)",
     borderRadius: "50%",
     opacity: 0.9,
   },
@@ -487,7 +450,7 @@ const ui = {
     display: "grid",
     placeItems: "center",
     opacity: 0.95,
-    transform: "scale(1.06)",
+    transform: "scale(1.04)",
   },
 
   svg: {
@@ -528,46 +491,66 @@ const ui = {
 
   orbit: {
     position: "absolute",
-    width: "min(720px, 80vw)",
+    width: "min(64vw, 64vh, 660px)",
     aspectRatio: "1 / 1",
     borderRadius: "50%",
-    border: "5px dashed rgba(0,0,0,0.12)",
+    border: "clamp(2px, 0.5vw, 5px) dashed rgba(0,0,0,0.12)",
     opacity: 0.28,
     animation: "sxSpin 18s linear infinite reverse",
   },
 
   symbol: {
     position: "absolute",
-    fontSize: "clamp(54px, 7vw, 96px)",
+    fontSize: "clamp(30px, 4.5vw, 96px)",
     fontWeight: 900,
     textShadow: "0 10px 26px rgba(0,0,0,0.22)",
-    transform: "translateY(8px)",
+    transform: "translateY(6px)",
     zIndex: 8,
   },
 
   pulseRing: {
     position: "absolute",
-    width: "min(700px, 78vw)",
+    width: "min(62vw, 62vh, 620px)",
     aspectRatio: "1 / 1",
     borderRadius: "50%",
-    border: "8px solid rgba(0,0,0,0.14)",
+    border: "clamp(4px, 0.8vw, 8px) solid rgba(0,0,0,0.14)",
     opacity: 0,
     animation: "sxPulse 750ms ease-out 1",
     zIndex: 7,
   },
 
   footer: {
-    position: "absolute",
-    bottom: 18,
-    left: 22,
-    right: 22,
+    position: "relative",
     textAlign: "center",
-    fontSize: 12,
+    fontSize: "clamp(10px, 1vw, 12px)",
     fontWeight: 900,
-    letterSpacing: "0.28em",
+    letterSpacing: "0.22em",
     opacity: 0.55,
     color: "#0E1720",
     zIndex: 10,
+    paddingBottom: "max(4px, env(safe-area-inset-bottom))",
+  },
+
+  vignette: {
+    position: "fixed",
+    inset: 0,
+    pointerEvents: "none",
+    background:
+      "radial-gradient(circle at 50% 45%, rgba(0,0,0,0.00) 20%, rgba(0,0,0,0.18) 70%, rgba(0,0,0,0.35) 100%)",
+    zIndex: 2,
+  },
+
+  grain: {
+    position: "fixed",
+    inset: 0,
+    pointerEvents: "none",
+    opacity: 0.1,
+    mixBlendMode: "multiply",
+    backgroundImage:
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E\")",
+    backgroundRepeat: "repeat",
+    animation: "sxGrain 1.1s steps(2) infinite",
+    zIndex: 3,
   },
 
   blackout: {
@@ -604,7 +587,6 @@ const ui = {
     },
   },
 
-  // OVERRIDE reflash overlays
   firmware: {
     scan: {
       position: "fixed",
@@ -640,18 +622,19 @@ const ui = {
     },
   },
 
-  // Glitch title layers
   titleGlitchWrap: {
     position: "relative",
-    padding: "14px 22px",
+    padding: "clamp(10px, 1.6vw, 14px) clamp(14px, 2.2vw, 22px)",
     borderRadius: 18,
     border: "4px solid rgba(0,0,0,0.14)",
     background: "rgba(255,255,255,0.80)",
     boxShadow: "0 22px 55px rgba(0,0,0,0.20)",
     overflow: "hidden",
+    maxWidth: "100%",
   },
+
   titleGlitchBase: {
-    fontSize: "clamp(34px, 6vw, 72px)",
+    fontSize: "clamp(24px, 4.2vw, 72px)",
     fontWeight: 950,
     letterSpacing: "0.08em",
     color: "#0E1720",
@@ -659,27 +642,31 @@ const ui = {
     zIndex: 2,
     animation: "sxTitleJitter 0.22s infinite",
   },
+
   titleGlitchGhost: {
     position: "absolute",
-    left: 22,
-    top: 14,
-    fontSize: "clamp(34px, 6vw, 72px)",
+    left: "clamp(14px, 2.2vw, 22px)",
+    top: "clamp(10px, 1.6vw, 14px)",
+    fontSize: "clamp(24px, 4.2vw, 72px)",
     fontWeight: 950,
     letterSpacing: "0.08em",
     opacity: 0.55,
     zIndex: 1,
     pointerEvents: "none",
   },
+
   titleGhostRed: {
     color: "rgba(255,0,120,0.75)",
     transform: "translateX(calc(var(--sxSplit) * -1))",
     mixBlendMode: "multiply",
   },
+
   titleGhostCyan: {
     color: "rgba(0,200,255,0.78)",
     transform: "translateX(var(--sxSplit))",
     mixBlendMode: "multiply",
   },
+
   titleGlitchSlices: {
     position: "absolute",
     inset: 0,
@@ -688,11 +675,12 @@ const ui = {
     opacity: 0.9,
     mixBlendMode: "multiply",
   },
+
   sliceA: {
     position: "absolute",
-    left: 22,
-    top: 14,
-    fontSize: "clamp(34px, 6vw, 72px)",
+    left: "clamp(14px, 2.2vw, 22px)",
+    top: "clamp(10px, 1.6vw, 14px)",
+    fontSize: "clamp(24px, 4.2vw, 72px)",
     fontWeight: 950,
     letterSpacing: "0.08em",
     color: "rgba(0,0,0,0.70)",
@@ -700,11 +688,12 @@ const ui = {
     transform: "translateX(calc(var(--sxSplit) * 0.35))",
     animation: "sxSlice 0.26s infinite",
   },
+
   sliceB: {
     position: "absolute",
-    left: 22,
-    top: 14,
-    fontSize: "clamp(34px, 6vw, 72px)",
+    left: "clamp(14px, 2.2vw, 22px)",
+    top: "clamp(10px, 1.6vw, 14px)",
+    fontSize: "clamp(24px, 4.2vw, 72px)",
     fontWeight: 950,
     letterSpacing: "0.08em",
     color: "rgba(0,0,0,0.60)",
@@ -712,11 +701,12 @@ const ui = {
     transform: "translateX(calc(var(--sxSplit) * -0.25))",
     animation: "sxSlice 0.31s infinite reverse",
   },
+
   sliceC: {
     position: "absolute",
-    left: 22,
-    top: 14,
-    fontSize: "clamp(34px, 6vw, 72px)",
+    left: "clamp(14px, 2.2vw, 22px)",
+    top: "clamp(10px, 1.6vw, 14px)",
+    fontSize: "clamp(24px, 4.2vw, 72px)",
     fontWeight: 950,
     letterSpacing: "0.08em",
     color: "rgba(0,0,0,0.52)",
@@ -774,8 +764,10 @@ const THEMES = {
   },
 };
 
-// keyframes
-if (typeof document !== "undefined" && !document.getElementById("sx-performer-wow-kf")) {
+if (
+  typeof document !== "undefined" &&
+  !document.getElementById("sx-performer-wow-kf")
+) {
   const style = document.createElement("style");
   style.id = "sx-performer-wow-kf";
   style.textContent = `
@@ -795,13 +787,11 @@ if (typeof document !== "undefined" && !document.getElementById("sx-performer-wo
     @keyframes sxShimmer { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @keyframes sxGrain { 0% { transform: translate3d(0,0,0); } 50% { transform: translate3d(-1%,1%,0); } 100% { transform: translate3d(0,0,0); } }
 
-    /* STABLE breathing */
     @keyframes sxBreath {
       0%,100% { transform: scale(1); filter: drop-shadow(0 24px 70px rgba(0,0,0,0.10)); }
       50% { transform: scale(1.02); filter: drop-shadow(0 28px 86px rgba(0,0,0,0.16)); }
     }
 
-    /* GLITCH title */
     @keyframes sxTitleJitter {
       0% { transform: translate(0,0); }
       25% { transform: translate(calc(var(--sxJitter) * -0.6px), calc(var(--sxJitter) * 0.4px)); }
@@ -809,23 +799,25 @@ if (typeof document !== "undefined" && !document.getElementById("sx-performer-wo
       75% { transform: translate(calc(var(--sxJitter) * 0.7px), calc(var(--sxJitter) * 0.3px)); }
       100% { transform: translate(0,0); }
     }
+
     @keyframes sxSlice {
       0% { opacity: .85; transform: translateX(calc(var(--sxSplit) * 0.2)); }
       50% { opacity: 1; transform: translateX(calc(var(--sxSplit) * -0.25)); }
       100% { opacity: .9; transform: translateX(calc(var(--sxSplit) * 0.1)); }
     }
 
-    /* OVERRIDE firmware scan */
     @keyframes sxFirmwareScan {
       0% { opacity: 0; transform: translateY(-20%); }
       20% { opacity: 1; }
       100% { opacity: 0; transform: translateY(20%); }
     }
+
     @keyframes sxFirmwareFlash {
       0% { opacity: 0; }
       25% { opacity: 1; }
       100% { opacity: 0; }
     }
+
     @keyframes sxFirmwareHud {
       0% { opacity: 0; transform: translateY(-3%); }
       30% { opacity: 0.55; }
